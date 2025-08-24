@@ -46,6 +46,17 @@ export const BrainCircuit = createLucideIcon('brain-circuit', [
   React.createElement('path', { key: 14, d: 'M18 15h.01' }),
 ]);
 
+export const Brain = createLucideIcon('brain', [
+    React.createElement('path', { key: 1, d: "M9.5 2A2.5 2.5 0 0 1 12 4.5v0A2.5 2.5 0 0 1 9.5 7h-3A2.5 2.5 0 0 1 4 4.5v0A2.5 2.5 0 0 1 6.5 2" }),
+    React.createElement('path', { key: 2, d: "M14.5 2A2.5 2.5 0 0 1 17 4.5v0A2.5 2.5 0 0 1 14.5 7h-3a2.5 2.5 0 0 1-2.5-2.5v0A2.5 2.5 0 0 1 11.5 2" }),
+    React.createElement('path', { key: 3, d: "M12 10.5a2.5 2.5 0 0 1-2.5-2.5v0A2.5 2.5 0 0 1 12 5.5h0A2.5 2.5 0 0 1 14.5 8v0a2.5 2.5 0 0 1-2.5 2.5" }),
+    React.createElement('path', { key: 4, d: "M4.5 13.5a2.5 2.5 0 0 1 2.5-2.5v0a2.5 2.5 0 0 1 2.5 2.5h0a2.5 2.5 0 0 1-2.5 2.5v0a2.5 2.5 0 0 1-2.5-2.5" }),
+    React.createElement('path', { key: 5, d: "M19.5 13.5a2.5 2.5 0 0 0-2.5-2.5v0a2.5 2.5 0 0 0-2.5 2.5h0a2.5 2.5 0 0 0 2.5 2.5v0a2.5 2.5 0 0 0 2.5-2.5" }),
+    React.createElement('path', { key: 6, d: "M12 22a2.5 2.5 0 0 0 2.5-2.5v0a2.5 2.5 0 0 0-2.5-2.5h0a2.5 2.5 0 0 0-2.5 2.5v0A2.5 2.5 0 0 0 12 22" }),
+    React.createElement('path', { key: 7, d: "M4 16.5c-1.5 0-3-1.5-3-3s1.5-3 3-3" }),
+    React.createElement('path', { key: 8, d: "M20 16.5c1.5 0 3-1.5 3-3s-1.5-3-3-3" })
+]);
+
 export const Mic = createLucideIcon('mic', [
   React.createElement('path', { key: 1, d: 'M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3Z' }),
   React.createElement('path', { key: 2, d: 'M19 10v2a7 7 0 0 1-14 0v-2' }),

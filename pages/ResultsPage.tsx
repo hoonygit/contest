@@ -1,33 +1,101 @@
-import React, { useRef } from 'react';
+import React, { useRef, useMemo, useState, useEffect } from 'react';
 import { useParams } from 'react-router-dom';
 import { getResultById } from '../services/storageService';
 import { getAllQuestionsForResults } from '../services/questionService';
-import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
+import { generateCategoryAnalysis } from '../services/geminiService';
+import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, RadarChart, PolarGrid, PolarAngleAxis, PolarRadiusAxis, Radar } from 'recharts';
 import { jsPDF } from 'jspdf';
 import html2canvas from 'html2canvas';
-import { Download, FileText, FileSpreadsheet } from 'lucide-react';
+import { Download, FileText, FileSpreadsheet, Brain, Loader2 } from 'lucide-react';
 import { Question } from '../types';
+
+interface CategoryAnalysis {
+  category: string;
+  correct: number;
+  total: number;
+  percentage: number;
+  analysisText: string;
+}
 
 const ResultsPage: React.FC = () => {
     const { id } = useParams<{ id: string }>();
     const result = id ? getResultById(id) : undefined;
     const reportRef = useRef<HTMLDivElement>(null);
+    const [analysis, setAnalysis] = useState<CategoryAnalysis[]>([]);
+    const [isLoadingAnalysis, setIsLoadingAnalysis] = useState(true);
     
-    // Here we get the full static list to reliably match question IDs.
     const allQuestions = getAllQuestionsForResults();
+
+    const getQuestionById = (questionId: number): Question | undefined => {
+        return allQuestions.find(q => q.id === questionId);
+    };
+    
+    const categoryScores = useMemo(() => {
+        if (!result) return {};
+        
+        const scores = result.answers.reduce((acc, answer) => {
+            const question = getQuestionById(answer.questionId);
+            if (question) {
+                const category = question.category;
+                if (!acc[category]) {
+                    acc[category] = { correct: 0, total: 0 };
+                }
+                acc[category].correct += answer.score;
+                acc[category].total += 1;
+            }
+            return acc;
+        }, {} as { [key: string]: { correct: number, total: number } });
+
+        return scores;
+    }, [result, allQuestions]);
+
+
+    useEffect(() => {
+        const fetchAnalysis = async () => {
+            if (Object.keys(categoryScores).length > 0) {
+                setIsLoadingAnalysis(true);
+                try {
+                    const analysisPromises = Object.entries(categoryScores).map(
+                        async ([category, scores]) => {
+                            const analysisText = await generateCategoryAnalysis(
+                                category,
+                                scores.correct,
+                                scores.total
+                            );
+                            return {
+                                category,
+                                ...scores,
+                                percentage: (scores.correct / scores.total) * 100,
+                                analysisText,
+                            };
+                        }
+                    );
+
+                    const results = await Promise.all(analysisPromises);
+                    setAnalysis(results);
+                } catch (error) {
+                    console.error("Failed to fetch AI analysis", error);
+                } finally {
+                    setIsLoadingAnalysis(false);
+                }
+            } else {
+                 setIsLoadingAnalysis(false);
+            }
+        };
+
+        fetchAnalysis();
+    }, [categoryScores]);
+
 
     if (!result) {
         return <div className="text-center text-xl">테스트 결과를 찾을 수 없습니다.</div>;
     }
-
-    const chartData = result.answers.map((ans, index) => ({
-        name: `문항 ${index + 1}`,
-        점수: ans.score,
-    }));
     
-    const getQuestionById = (questionId: number): Question | undefined => {
-        return allQuestions.find(q => q.id === questionId);
-    }
+    const radarChartData = analysis.map(a => ({
+        subject: a.category,
+        A: a.percentage,
+        fullMark: 100,
+    }));
 
     const exportToPDF = () => {
         const input = reportRef.current;
@@ -69,18 +137,29 @@ const ResultsPage: React.FC = () => {
     
     const exportToCSV = () => {
         let csvContent = "data:text/csv;charset=utf-8,\uFEFF";
-
-        // Add user info
         csvContent += "사용자 정보\r\n";
         csvContent += `이름,"${result.userInfo.name}"\r\n`;
         csvContent += `성별,"${result.userInfo.gender}"\r\n`;
         csvContent += `연령대,"${result.userInfo.ageGroup}"\r\n`;
         csvContent += `테스트 일시,"${new Date(result.timestamp).toLocaleString('ko-KR')}"\r\n`;
-        csvContent += `총점,"${result.totalScore} / ${result.answers.length}"\r\n`;
-        csvContent += "\r\n"; // Empty line for separation
+        csvContent += `총점,"${result.totalScore} / ${result.answers.length}"\r\n\r\n`;
         
+        csvContent += "분야별 분석\r\n";
+        csvContent += "분야,정답수,문항수,정답률(%),AI 분석\r\n";
+        analysis.forEach(item => {
+            const row = [
+                item.category,
+                item.correct,
+                item.total,
+                `${item.percentage.toFixed(1)}%`,
+                `"${item.analysisText.replace(/"/g, '""')}"`
+            ].join(',');
+            csvContent += row + "\r\n";
+        });
+        csvContent += "\r\n";
+        
+        csvContent += "문항별 상세 결과\r\n";
         csvContent += "문항 번호,질문,사용자 답변,정답,점수,AI 평가\n";
-        
         result.answers.forEach((ans, index) => {
             const question = getQuestionById(ans.questionId);
             const row = [
@@ -137,21 +216,43 @@ const ResultsPage: React.FC = () => {
                     </p>
                 </div>
                 
-                <div className="mb-8">
-                    <h2 className="text-xl font-semibold text-gray-700 mb-4">문항별 점수 그래프</h2>
-                    <ResponsiveContainer width="100%" height={300}>
-                        <BarChart data={chartData}>
-                            <CartesianGrid strokeDasharray="3 3" />
-                            <XAxis dataKey="name" />
-                            <YAxis allowDecimals={false} domain={[0, 1]} ticks={[0, 1]}/>
-                            <Tooltip />
-                            <Legend />
-                            <Bar dataKey="점수" fill="#4f46e5" />
-                        </BarChart>
-                    </ResponsiveContainer>
+                <div className="mb-8 border-t pt-6">
+                    <h2 className="text-xl font-semibold text-gray-700 mb-4 flex items-center"><Brain className="w-6 h-6 mr-2 text-indigo-500" />분야별 상세 분석</h2>
+                    {isLoadingAnalysis ? (
+                         <div className="flex justify-center items-center h-64">
+                            <Loader2 className="w-12 h-12 text-indigo-500 animate-spin" />
+                            <p className="ml-4 text-lg text-gray-600">AI가 결과를 분석하고 있습니다...</p>
+                        </div>
+                    ) : (
+                        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 items-center">
+                            <ResponsiveContainer width="100%" height={400}>
+                                <RadarChart cx="50%" cy="50%" outerRadius="80%" data={radarChartData}>
+                                    <PolarGrid />
+                                    <PolarAngleAxis dataKey="subject" />
+                                    <PolarRadiusAxis angle={30} domain={[0, 100]} />
+                                    <Radar name={result.userInfo.name} dataKey="A" stroke="#4f46e5" fill="#4f46e5" fillOpacity={0.6} />
+                                    <Tooltip />
+                                </RadarChart>
+                            </ResponsiveContainer>
+                            <div className="space-y-4">
+                                {analysis.map((item, index) => (
+                                    <div key={index} className="bg-gray-50 p-4 rounded-lg border">
+                                        <div className="flex justify-between items-center mb-1">
+                                            <h3 className="font-semibold text-gray-800">{item.category}</h3>
+                                            <p className="text-sm font-medium text-gray-600">{item.correct} / {item.total} 개</p>
+                                        </div>
+                                        <div className="w-full bg-gray-200 rounded-full h-2.5">
+                                            <div className="bg-indigo-600 h-2.5 rounded-full" style={{ width: `${item.percentage}%` }}></div>
+                                        </div>
+                                        <p className="text-sm text-gray-600 mt-2">{item.analysisText}</p>
+                                    </div>
+                                ))}
+                            </div>
+                        </div>
+                    )}
                 </div>
 
-                <div>
+                <div className="border-t pt-6">
                     <h2 className="text-xl font-semibold text-gray-700 mb-4">문항별 상세 결과</h2>
                     <div className="space-y-4">
                         {result.answers.map((answer, index) => {
