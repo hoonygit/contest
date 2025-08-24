@@ -1,7 +1,7 @@
 import React, { useRef } from 'react';
 import { useParams } from 'react-router-dom';
 import { getResultById } from '../services/storageService';
-import { getTestQuestions } from '../services/questionService';
+import { getAllQuestionsForResults } from '../services/questionService';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
 import { jsPDF } from 'jspdf';
 import html2canvas from 'html2canvas';
@@ -13,9 +13,8 @@ const ResultsPage: React.FC = () => {
     const result = id ? getResultById(id) : undefined;
     const reportRef = useRef<HTMLDivElement>(null);
     
-    // In a real app, you'd fetch the specific questions used in the test.
-    // Here we're just getting a full list for demonstration to match IDs.
-    const allQuestions = getTestQuestions().concat(getTestQuestions()); // To ensure we have all possible IDs
+    // Here we get the full static list to reliably match question IDs.
+    const allQuestions = getAllQuestionsForResults();
 
     if (!result) {
         return <div className="text-center text-xl">테스트 결과를 찾을 수 없습니다.</div>;

@@ -37,19 +37,31 @@ const useSpeech = () => {
     const recognitionRef = useRef<SpeechRecognition | null>(null);
     const audioContextRef = useRef<AudioContext | null>(null);
 
-    const getAudioContext = useCallback(() => {
-        if (!audioContextRef.current && typeof window !== 'undefined') {
+    // Ensures the AudioContext is initialized and in a 'running' state.
+    // This is crucial for browsers like Safari that suspend the audio context until a user gesture.
+    const ensureAudioContext = useCallback(() => {
+        if (typeof window === 'undefined') return null;
+
+        if (!audioContextRef.current) {
             try {
                 audioContextRef.current = new (window.AudioContext || window.webkitAudioContext)();
             } catch (e) {
                 console.error("Web Audio API is not supported in this browser.", e);
+                return null;
             }
         }
+
+        // If the context is suspended, try to resume it.
+        // This must be called in response to a user gesture.
+        if (audioContextRef.current.state === 'suspended') {
+            audioContextRef.current.resume().catch(e => console.error("AudioContext resume failed:", e));
+        }
+        
         return audioContextRef.current;
     }, []);
 
     const playBeep = useCallback(() => {
-        const context = getAudioContext();
+        const context = ensureAudioContext();
         if (!context) return;
 
         const oscillator = context.createOscillator();
@@ -66,16 +78,22 @@ const useSpeech = () => {
         oscillator.frequency.setValueAtTime(880, context.currentTime);
         oscillator.start(context.currentTime);
         oscillator.stop(context.currentTime + 0.1);
-    }, [getAudioContext]);
-
+    }, [ensureAudioContext]);
 
     const speak = useCallback((text: string): Promise<void> => {
+        // Ensure AudioContext is active before trying to speak.
+        ensureAudioContext();
+
         return new Promise((resolve, reject) => {
             if (typeof window === 'undefined' || !window.speechSynthesis) {
                 console.warn("Speech synthesis not supported.");
                 return reject("Speech synthesis not supported.");
             }
             
+            // Workaround for a Safari bug where the speech synthesis queue gets stuck.
+            // Cancelling previous utterances can help "un-stick" it.
+            window.speechSynthesis.cancel();
+
             const utterance = new SpeechSynthesisUtterance(text);
             utterance.lang = 'ko-KR';
             utterance.pitch = 1;
@@ -92,16 +110,27 @@ const useSpeech = () => {
                 reject(event.error);
             };
 
-            window.speechSynthesis.speak(utterance);
+            // A short delay can sometimes help ensure the `cancel` has taken effect.
+            setTimeout(() => {
+                window.speechSynthesis.speak(utterance);
+            }, 50);
         });
-    }, []);
+    }, [ensureAudioContext]);
 
     const listen = useCallback((timeoutSeconds: number, grammar?: string[]): Promise<string> => {
+        // Ensure AudioContext is active before trying to listen.
+        ensureAudioContext();
+
         return new Promise((resolve, reject) => {
             const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
             if (!SpeechRecognition) {
                 console.warn("Speech recognition not supported.");
                 return reject("Speech recognition not supported.");
+            }
+
+            // Ensure any previous recognition is stopped before starting a new one.
+            if (recognitionRef.current) {
+                recognitionRef.current.stop();
             }
 
             const recognition = new SpeechRecognition();
@@ -121,6 +150,17 @@ const useSpeech = () => {
             }
 
             let timeout: number | null = null;
+            let ended = false; // Flag to prevent multiple resolutions/rejections
+
+            const cleanup = () => {
+                if (timeout) clearTimeout(timeout);
+                recognition.onresult = null;
+                recognition.onend = null;
+                recognition.onerror = null;
+                recognition.onstart = null;
+                recognitionRef.current = null;
+                setIsListening(false);
+            };
 
             recognition.onstart = () => {
                 playBeep();
@@ -128,31 +168,43 @@ const useSpeech = () => {
             };
             
             recognition.onresult = (event) => {
-                if (timeout) clearTimeout(timeout);
+                if (ended) return;
+                ended = true;
                 const transcript = event.results[0][0].transcript;
                 resolve(transcript);
+                cleanup();
             };
 
-            recognition.onend = () => setIsListening(false);
+            recognition.onend = () => {
+                if (ended) return;
+                cleanup();
+            };
 
             recognition.onerror = (event) => {
-                if (timeout) clearTimeout(timeout);
+                if (ended) return;
+                ended = true;
                 console.error("Speech recognition error:", event.error);
                 if (event.error === 'no-speech') {
                     reject('no-speech');
-                } else {
+                } else if (event.error === 'aborted') {
+                    reject('Listening timeout.');
+                }
+                else {
                     reject(event.error);
                 }
+                cleanup();
             };
             
             recognition.start();
 
             timeout = window.setTimeout(() => {
+                if (ended) return;
+                ended = true;
                 recognition.stop();
                 reject('Listening timeout.');
             }, timeoutSeconds * 1000);
         });
-    }, [playBeep]);
+    }, [ensureAudioContext, playBeep]);
 
     return { speak, listen, isSpeaking, isListening };
 };
