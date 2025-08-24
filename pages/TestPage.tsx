@@ -93,39 +93,52 @@ const TestPage: React.FC = () => {
                             grammar?: string[]
                         ) => {
                             const MAX_RETRIES = 3;
-                            for (let i = 0; i < MAX_RETRIES; i++) {
-                                await speak(question);
-                                await delay(500);
+                            let retries = 0;
+
+                            await speak(question);
+                            await delay(500);
+
+                            while (retries < MAX_RETRIES) {
                                 try {
                                     const response = await listen(ANSWER_TIMEOUT_SECONDS, grammar);
                                     setCurrentTranscript(response);
+
+                                    if (response.trim().includes('다시')) {
+                                        await speak("네, 다시 질문해 드릴게요.");
+                                        await speak(question);
+                                        await delay(500);
+                                        continue;
+                                    }
+
                                     const processedValue = process(response);
-                        
                                     if (processedValue !== null) {
                                         setUserInfo(prev => ({ ...prev, [field]: processedValue as any }));
                                         dispatch({ type: 'USER_INFO_COLLECTED', field, value: processedValue });
-                                        return; // Success, exit function
+                                        return;
                                     } else {
-                                        // Understood but invalid answer
-                                        if (i < MAX_RETRIES - 1) {
+                                        retries++;
+                                        if (retries < MAX_RETRIES) {
                                             await speak("죄송합니다, 잘 이해하지 못했어요. 다시 말씀해주세요.");
+                                            await speak(question);
+                                            await delay(500);
                                         }
                                     }
                                 } catch (err) {
                                     if (err === 'no-speech' || err === 'Listening timeout.') {
-                                        if (i < MAX_RETRIES - 1) {
+                                        retries++;
+                                        if (retries < MAX_RETRIES) {
                                             const message = err === 'no-speech'
                                                 ? "아무런 답변이 들리지 않았습니다. 다시 한 번 말씀해주시겠어요?"
                                                 : "답변 시간이 초과되었습니다. 다시 한 번 말씀해주시겠어요?";
                                             await speak(message);
+                                            await speak(question);
+                                            await delay(500);
                                         }
                                     } else {
-                                        // For other errors, re-throw to be caught by the main handler
                                         throw err;
                                     }
                                 }
                             }
-                            // If loop finishes, all retries have failed
                             throw new Error("음성 입력을 받는 데 실패하여 테스트를 중단합니다.");
                         };
                         
@@ -188,20 +201,34 @@ const TestPage: React.FC = () => {
                     case 'LISTENING':
                         let userAnswer: string | null = null;
                         const MAX_RETRIES = 3;
-                        for (let i = 0; i < MAX_RETRIES; i++) {
+                        let retries = 0;
+
+                        while (retries < MAX_RETRIES) {
                             try {
-                                userAnswer = await listen(ANSWER_TIMEOUT_SECONDS);
-                                break; 
+                                const receivedAnswer = await listen(ANSWER_TIMEOUT_SECONDS);
+                                setCurrentTranscript(receivedAnswer);
+
+                                if (receivedAnswer.trim().includes('다시')) {
+                                    await speak("네, 질문을 다시 들려드릴게요.");
+                                    const qToRetry = questions[state.qIndex];
+                                    await speak(qToRetry.text);
+                                    await delay(500);
+                                    continue;
+                                }
+                                
+                                userAnswer = receivedAnswer;
+                                break;
                             } catch (err) {
                                 if (err === 'no-speech' || err === 'Listening timeout.') {
-                                    if (i < MAX_RETRIES - 1) {
+                                    retries++;
+                                    if (retries < MAX_RETRIES) {
                                         const message = err === 'no-speech'
                                             ? "아무런 답변이 들리지 않았습니다. 다시 한 번 말씀해주시겠어요?"
                                             : "답변 시간이 초과되었습니다. 다시 한 번 말씀해주시겠어요?";
                                         await speak(message);
                                         const qToRetry = questions[state.qIndex];
                                         await speak(qToRetry.text);
-                                        await delay(500); // Add pause on retry as well
+                                        await delay(500);
                                     }
                                 } else {
                                     throw err;
@@ -210,7 +237,6 @@ const TestPage: React.FC = () => {
                         }
 
                         if (userAnswer) {
-                            setCurrentTranscript(userAnswer);
                             dispatch({ type: 'ANSWER_RECEIVED', answer: userAnswer });
                         } else {
                             await speak("답변이 없어 이 문항을 건너뛰겠습니다.");
