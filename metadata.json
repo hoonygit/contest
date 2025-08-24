@@ -1,5 +1,5 @@
 {
-  "name": "삼성콜로키움_인지테스트",
+  "name": "삼성콜로키움_인지테스트_v2",
   "description": "An AI-powered voice-based cognitive assessment tool. Users can take tests, receive AI-evaluated results, and view aggregated statistics.",
   "requestFramePermissions": [
     "microphone"

@@ -149,14 +149,15 @@ const TestPage: React.FC = () => {
                             await askAndListen('성별을 말씀해주세요. 예를 들어, 남성 또는 여성.', 'gender', processGender, genderGrammar);
                         } else if (state.stage === 'ageGroup' && !userInfo.ageGroup) {
                             const ageGrammar = [
-                                '20대', '30대', '40대', '50대', '60대', '70대', '80대', '90대',
-                                '이십대', '삼십대', '사십대', '오십대', '육십대', '칠십대', '팔십대', '구십대',
-                                '스무살', '서른살', '마흔살', '쉰살', '예순살', '일흔살', '여든살', '아흔살',
-                                '스물', '서른', '마흔', '쉰', '예순', '일흔', '여든', '아흔',
-                                '이십', '삼십', '사십', '오십', '육십', '칠십', '팔십', '구십'
+                                '10대', '20대', '30대', '40대', '50대', '60대', '70대', '80대', '90대',
+                                '십대', '이십대', '삼십대', '사십대', '오십대', '육십대', '칠십대', '팔십대', '구십대',
+                                '열살', '스무살', '서른살', '마흔살', '쉰살', '예순살', '일흔살', '여든살', '아흔살',
+                                '열', '스물', '서른', '마흔', '쉰', '예순', '일흔', '여든', '아흔',
+                                '십', '이십', '삼십', '사십', '오십', '육십', '칠십', '팔십', '구십'
                             ];
                             const processAgeGroup = (v: string): UserInfo['ageGroup'] | null => {
                                 const cleanV = v.replace(/\s+/g, '');
+                                if (cleanV.includes('10') || cleanV.includes('십') || cleanV.includes('열')) return '10대';
                                 if (cleanV.includes('20') || cleanV.includes('이십') || cleanV.includes('스무') || cleanV.includes('스물')) return '20대';
                                 if (cleanV.includes('30') || cleanV.includes('삼십') || cleanV.includes('서른')) return '30대';
                                 if (cleanV.includes('40') || cleanV.includes('사십') || cleanV.includes('마흔')) return '40대';
@@ -167,7 +168,7 @@ const TestPage: React.FC = () => {
                                     cleanV.includes('90') || cleanV.includes('구십') || cleanV.includes('아흔')) return '70대 이상';
                                 return null;
                             };
-                            await askAndListen('연령대를 말씀해주세요. 예를 들어, 20대, 30대.', 'ageGroup', processAgeGroup, ageGrammar);
+                            await askAndListen('연령대를 말씀해주세요. 예를 들어, 10대, 20대.', 'ageGroup', processAgeGroup, ageGrammar);
                         }
                         break;
 
