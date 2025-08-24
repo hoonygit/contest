@@ -145,9 +145,9 @@ const TestPage: React.FC = () => {
                         if (state.stage === 'name' && !userInfo.name) {
                             await askAndListen('테스트를 시작하겠습니다. 먼저 성함을 말씀해주세요.', 'name', (v) => v || null);
                         } else if (state.stage === 'gender' && !userInfo.gender) {
-                             const genderGrammar = ['남성', '여성', '남자', '여자', '기타'];
+                             const genderGrammar = ['남성', '여성', '남자', '여자', '기타', '남자입니다', '여자입니다'];
                              const processGender = (v: string): '남성' | '여성' | '기타' | null => {
-                                const cleanV = v.replace(/\s+/g, '').toLowerCase();
+                                const cleanV = v.replace(/[\s입니다요]/g, ''); // "남자입니다", "여자요" 등을 정규화
                                 if (cleanV.includes('남성') || cleanV.includes('남자')) {
                                     return '남성';
                                 }
@@ -163,22 +163,33 @@ const TestPage: React.FC = () => {
                         } else if (state.stage === 'ageGroup' && !userInfo.ageGroup) {
                             const ageGrammar = [
                                 '10대', '20대', '30대', '40대', '50대', '60대', '70대', '80대', '90대',
-                                '십대', '이십대', '삼십대', '사십대', '오십대', '육십대', '칠십대', '팔십대', '구십대',
-                                '열살', '스무살', '서른살', '마흔살', '쉰살', '예순살', '일흔살', '여든살', '아흔살',
-                                '열', '스물', '서른', '마흔', '쉰', '예순', '일흔', '여든', '아흔',
-                                '십', '이십', '삼십', '사십', '오십', '육십', '칠십', '팔십', '구십'
+                                '십대', '이십대', '삼십대', '사십대', '오십대', '육십대', '칠십대',
+                                '열살', '스무살', '서른살', '마흔살', '쉰살', '예순살', '일흔살',
+                                '열', '스물', '서른', '마흔', '쉰', '예순', '일흔',
+                                '십', '이십', '삼십', '사십', '오십', '육십', '칠십',
+                                '팔십', '구십', '여든', '아흔', '70대 이상',
                             ];
                             const processAgeGroup = (v: string): UserInfo['ageGroup'] | null => {
-                                const cleanV = v.replace(/\s+/g, '');
-                                if (cleanV.includes('10') || cleanV.includes('십') || cleanV.includes('열')) return '10대';
-                                if (cleanV.includes('20') || cleanV.includes('이십') || cleanV.includes('스무') || cleanV.includes('스물')) return '20대';
-                                if (cleanV.includes('30') || cleanV.includes('삼십') || cleanV.includes('서른')) return '30대';
-                                if (cleanV.includes('40') || cleanV.includes('사십') || cleanV.includes('마흔')) return '40대';
-                                if (cleanV.includes('50') || cleanV.includes('오십') || cleanV.includes('쉰')) return '50대';
-                                if (cleanV.includes('60') || cleanV.includes('육십') || cleanV.includes('예순')) return '60대';
-                                if (cleanV.includes('70') || cleanV.includes('칠십') || cleanV.includes('일흔') ||
-                                    cleanV.includes('80') || cleanV.includes('팔십') || cleanV.includes('여든') ||
-                                    cleanV.includes('90') || cleanV.includes('구십') || cleanV.includes('아흔')) return '70대 이상';
+                                // '대', '살', '세요' 같은 접미사와 공백을 제거하여 정규화
+                                const cleanV = v.replace(/[\s대살세요]/g, '');
+                                
+                                const ageMap: { keywords: string[], group: UserInfo['ageGroup'] }[] = [
+                                    { keywords: ['10', '십', '열'], group: '10대' },
+                                    { keywords: ['20', '이십', '스무', '스물'], group: '20대' },
+                                    { keywords: ['30', '삼십', '서른'], group: '30대' },
+                                    { keywords: ['40', '사십', '마흔'], group: '40대' },
+                                    { keywords: ['50', '오십', '쉰'], group: '50대' },
+                                    { keywords: ['60', '육십', '예순'], group: '60대' },
+                                    { keywords: ['70', '칠십', '일흔', '80', '팔십', '여든', '90', '구십', '아흔'], group: '70대 이상' },
+                                ];
+
+                                for (const entry of ageMap) {
+                                    for (const keyword of entry.keywords) {
+                                        if (cleanV.includes(keyword)) {
+                                            return entry.group;
+                                        }
+                                    }
+                                }
                                 return null;
                             };
                             await askAndListen('연령대를 말씀해주세요. 예를 들어, 10대, 20대.', 'ageGroup', processAgeGroup, ageGrammar);
