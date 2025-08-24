@@ -17,7 +17,7 @@ const generalQuestions: Question[] = [
     { id: 13, type: QuestionType.GENERAL, category: '기억력', text: '대한민국의 대통령은 누구인가요?', correctAnswer: '현재 대통령 이름' },
     { id: 14, type: QuestionType.GENERAL, category: '언어', text: '과일 종류를 3가지만 말해보세요.', correctAnswer: '과일 이름 3개' },
     { id: 15, type: QuestionType.GENERAL, category: '계산', text: '한 시간에 60분입니다. 두 시간이면 몇 분인가요?', correctAnswer: '120분' },
-    { id: 16, type: QuestionType.GENERAL, category: '주의력', text: '제가 부르는 단어 중 \'강아지\'가 나오면 손뼉을 치세요: 고양이, 강아지, 병아리.', correctAnswer: '손뼉 치는 행동' },
+    { id: 16, type: QuestionType.GENERAL, category: '주의력', text: '제가 부르는 단어 를 따라 말해보세요.: 고양이, 강아지, 병아리.', correctAnswer: '고양이, 강아지, 병아리' },
     { id: 17, type: QuestionType.GENERAL, category: '판단력', text: '밤에 집에서 연기 냄새가 나면 가장 먼저 무엇을 해야 할까요?', correctAnswer: '불이 났는지 확인하고 119에 신고한다' },
     { id: 18, type: QuestionType.GENERAL, category: '기억력', text: '아침 식사로 무엇을 드셨나요?', correctAnswer: '아침 식사 메뉴' },
     { id: 19, type: QuestionType.GENERAL, category: '언어', text: '반대말을 말해보세요. \'덥다\'의 반대말은 무엇일까요?', correctAnswer: '춥다' },

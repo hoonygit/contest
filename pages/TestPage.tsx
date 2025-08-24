@@ -60,6 +60,8 @@ const testReducer = (state: TestState, action: Action): TestState => {
     }
 };
 
+const delay = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
+
 const TestPage: React.FC = () => {
     const [state, dispatch] = useReducer(testReducer, initialState);
     const [userInfo, setUserInfo] = useState<Partial<UserInfo>>({});
@@ -93,6 +95,7 @@ const TestPage: React.FC = () => {
                             const MAX_RETRIES = 3;
                             for (let i = 0; i < MAX_RETRIES; i++) {
                                 await speak(question);
+                                await delay(500);
                                 try {
                                     const response = await listen(ANSWER_TIMEOUT_SECONDS, grammar);
                                     setCurrentTranscript(response);
@@ -109,9 +112,12 @@ const TestPage: React.FC = () => {
                                         }
                                     }
                                 } catch (err) {
-                                    if (err === 'no-speech') {
+                                    if (err === 'no-speech' || err === 'Listening timeout.') {
                                         if (i < MAX_RETRIES - 1) {
-                                            await speak("아무런 답변이 들리지 않았습니다. 다시 한 번 말씀해주시겠어요?");
+                                            const message = err === 'no-speech'
+                                                ? "아무런 답변이 들리지 않았습니다. 다시 한 번 말씀해주시겠어요?"
+                                                : "답변 시간이 초과되었습니다. 다시 한 번 말씀해주시겠어요?";
+                                            await speak(message);
                                         }
                                     } else {
                                         // For other errors, re-throw to be caught by the main handler
@@ -142,15 +148,23 @@ const TestPage: React.FC = () => {
                             };
                             await askAndListen('성별을 말씀해주세요. 예를 들어, 남성 또는 여성.', 'gender', processGender, genderGrammar);
                         } else if (state.stage === 'ageGroup' && !userInfo.ageGroup) {
-                            const ageGrammar = ['20대', '30대', '40대', '50대', '60대', '70대', '80대', '90대', '이십대', '삼십대', '사십대', '오십대', '육십대', '칠십대', '팔십대', '구십대'];
+                            const ageGrammar = [
+                                '20대', '30대', '40대', '50대', '60대', '70대', '80대', '90대',
+                                '이십대', '삼십대', '사십대', '오십대', '육십대', '칠십대', '팔십대', '구십대',
+                                '스무살', '서른살', '마흔살', '쉰살', '예순살', '일흔살', '여든살', '아흔살',
+                                '스물', '서른', '마흔', '쉰', '예순', '일흔', '여든', '아흔',
+                                '이십', '삼십', '사십', '오십', '육십', '칠십', '팔십', '구십'
+                            ];
                             const processAgeGroup = (v: string): UserInfo['ageGroup'] | null => {
                                 const cleanV = v.replace(/\s+/g, '');
-                                if (cleanV.includes('20') || cleanV.includes('이십')) return '20대';
-                                if (cleanV.includes('30') || cleanV.includes('삼십')) return '30대';
-                                if (cleanV.includes('40') || cleanV.includes('사십')) return '40대';
-                                if (cleanV.includes('50') || cleanV.includes('오십')) return '50대';
-                                if (cleanV.includes('60') || cleanV.includes('육십')) return '60대';
-                                if (cleanV.includes('70') || cleanV.includes('칠십') || cleanV.includes('80') || cleanV.includes('팔십') || cleanV.includes('90') || cleanV.includes('구십')) return '70대 이상';
+                                if (cleanV.includes('20') || cleanV.includes('이십') || cleanV.includes('스무') || cleanV.includes('스물')) return '20대';
+                                if (cleanV.includes('30') || cleanV.includes('삼십') || cleanV.includes('서른')) return '30대';
+                                if (cleanV.includes('40') || cleanV.includes('사십') || cleanV.includes('마흔')) return '40대';
+                                if (cleanV.includes('50') || cleanV.includes('오십') || cleanV.includes('쉰')) return '50대';
+                                if (cleanV.includes('60') || cleanV.includes('육십') || cleanV.includes('예순')) return '60대';
+                                if (cleanV.includes('70') || cleanV.includes('칠십') || cleanV.includes('일흔') ||
+                                    cleanV.includes('80') || cleanV.includes('팔십') || cleanV.includes('여든') ||
+                                    cleanV.includes('90') || cleanV.includes('구십') || cleanV.includes('아흔')) return '70대 이상';
                                 return null;
                             };
                             await askAndListen('연령대를 말씀해주세요. 예를 들어, 20대, 30대.', 'ageGroup', processAgeGroup, ageGrammar);
@@ -166,6 +180,7 @@ const TestPage: React.FC = () => {
                     case 'ASKING_QUESTION':
                         const currentQuestion = questions[state.qIndex];
                         await speak(currentQuestion.text);
+                        await delay(500); // Add a brief pause for better user experience
                         dispatch({ type: 'QUESTION_ASKED', qIndex: state.qIndex });
                         break;
                     
@@ -177,11 +192,15 @@ const TestPage: React.FC = () => {
                                 userAnswer = await listen(ANSWER_TIMEOUT_SECONDS);
                                 break; 
                             } catch (err) {
-                                if (err === 'no-speech') {
+                                if (err === 'no-speech' || err === 'Listening timeout.') {
                                     if (i < MAX_RETRIES - 1) {
-                                        await speak("아무런 답변이 들리지 않았습니다. 다시 한 번 말씀해주시겠어요?");
+                                        const message = err === 'no-speech'
+                                            ? "아무런 답변이 들리지 않았습니다. 다시 한 번 말씀해주시겠어요?"
+                                            : "답변 시간이 초과되었습니다. 다시 한 번 말씀해주시겠어요?";
+                                        await speak(message);
                                         const qToRetry = questions[state.qIndex];
                                         await speak(qToRetry.text);
+                                        await delay(500); // Add pause on retry as well
                                     }
                                 } else {
                                     throw err;
