@@ -4,6 +4,7 @@ import { getAllResults } from '../services/storageService';
 import { getAllQuestionsForResults } from '../services/questionService';
 import { RadarChart, PolarGrid, PolarAngleAxis, PolarRadiusAxis, Radar, Tooltip, Legend, ResponsiveContainer } from 'recharts';
 import { UserInfo } from '../types';
+import { BarChart2 } from 'lucide-react';
 
 // Define a type for the processed statistics structure
 type CategoryStats = { [category: string]: { correct: number; total: number } };
@@ -165,8 +166,11 @@ const StatisticsPage: React.FC = () => {
                     </RadarChart>
                 </ResponsiveContainer>
             ) : (
-                <div className="text-center text-gray-500 py-16">
-                    <p>선택된 그룹에 대한 데이터가 없습니다.</p>
+                <div className="text-center text-gray-500 py-16 flex flex-col items-center justify-center bg-gray-50 rounded-lg">
+                    <BarChart2 className="w-16 h-16 mb-4 text-gray-400" />
+                    <h3 className="text-xl font-semibold text-gray-700">데이터 없음</h3>
+                    <p className="mt-2 text-gray-600">선택된 조건에 해당하는 테스트 결과가 없습니다.</p>
+                    <p className="text-sm mt-1">다른 연령대나 성별을 선택해 보세요.</p>
                 </div>
             )}
         </div>

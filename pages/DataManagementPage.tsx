@@ -6,7 +6,7 @@ import { Download, Upload } from 'lucide-react';
 const DataManagementPage: React.FC = () => {
     const fileInputRef = useRef<HTMLInputElement>(null);
 
-    const handleBackup = () => {
+    const handleBackup = async () => {
         const results = getAllResults();
         if (results.length === 0) {
             alert('백업할 데이터가 없습니다.');
@@ -15,16 +15,43 @@ const DataManagementPage: React.FC = () => {
         try {
             const dataStr = JSON.stringify(results, null, 2);
             const dataBlob = new Blob([dataStr], { type: 'application/json' });
-            const url = URL.createObjectURL(dataBlob);
-            const link = document.createElement('a');
-            link.href = url;
             const timestamp = new Date().toISOString().slice(0, 19).replace(/[-T:]/g, '');
-            link.download = `cognitive_insight_ai_backup_${timestamp}.json`;
-            document.body.appendChild(link);
-            link.click();
-            document.body.removeChild(link);
-            URL.revokeObjectURL(url);
-            alert('데이터 백업이 완료되었습니다.');
+            const suggestedFileName = `cognitive_insight_ai_backup_${timestamp}.json`;
+
+            // Use File System Access API if available for a better user experience
+            if ('showSaveFilePicker' in window) {
+                try {
+                    const handle = await (window as any).showSaveFilePicker({
+                        suggestedName: suggestedFileName,
+                        types: [{
+                            description: 'JSON Files',
+                            accept: { 'application/json': ['.json'] },
+                        }],
+                    });
+                    const writable = await handle.createWritable();
+                    await writable.write(dataBlob);
+                    await writable.close();
+                    alert('데이터 백업이 성공적으로 지정된 경로에 저장되었습니다.');
+                } catch (err: any) {
+                    // AbortError is thrown when the user cancels the file picker.
+                    // We don't need to show an error message in that case.
+                    if (err.name !== 'AbortError') {
+                        console.error("Backup failed using File System Access API:", err);
+                        alert('데이터 백업 중 오류가 발생했습니다.');
+                    }
+                }
+            } else {
+                // Fallback for browsers that do not support the API
+                const url = URL.createObjectURL(dataBlob);
+                const link = document.createElement('a');
+                link.href = url;
+                link.download = suggestedFileName;
+                document.body.appendChild(link);
+                link.click();
+                document.body.removeChild(link);
+                URL.revokeObjectURL(url);
+                alert('데이터 백업이 완료되었습니다. 파일이 다운로드 폴더에 저장됩니다.');
+            }
         } catch (error) {
             console.error("Backup failed:", error);
             alert('데이터 백업 중 오류가 발생했습니다.');

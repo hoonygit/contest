@@ -154,11 +154,13 @@ const useSpeech = () => {
 
             const cleanup = () => {
                 if (timeout) clearTimeout(timeout);
-                recognition.onresult = null;
-                recognition.onend = null;
-                recognition.onerror = null;
-                recognition.onstart = null;
-                recognitionRef.current = null;
+                if (recognitionRef.current) {
+                    recognitionRef.current.onresult = null;
+                    recognitionRef.current.onend = null;
+                    recognitionRef.current.onerror = null;
+                    recognitionRef.current.onstart = null;
+                    recognitionRef.current = null;
+                }
                 setIsListening(false);
             };
 
@@ -170,7 +172,19 @@ const useSpeech = () => {
             recognition.onresult = (event) => {
                 if (ended) return;
                 ended = true;
-                const transcript = event.results[0][0].transcript;
+
+                const lastResult = event.results[event.results.length - 1];
+                const bestAlternative = lastResult[0];
+                const transcript = bestAlternative.transcript;
+                const confidence = bestAlternative.confidence;
+
+                // Add a confidence check. 0.4 seems a reasonable threshold.
+                if (confidence < 0.4) {
+                    reject('low-confidence');
+                    cleanup();
+                    return;
+                }
+                
                 resolve(transcript);
                 cleanup();
             };
@@ -200,7 +214,9 @@ const useSpeech = () => {
             timeout = window.setTimeout(() => {
                 if (ended) return;
                 ended = true;
-                recognition.stop();
+                if(recognitionRef.current) {
+                    recognitionRef.current.stop();
+                }
                 reject('Listening timeout.');
             }, timeoutSeconds * 1000);
         });

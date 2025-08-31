@@ -1,12 +1,12 @@
-import React, { useRef, useMemo, useState, useEffect } from 'react';
+import React, { useRef, useMemo, useState, useEffect, useCallback } from 'react';
 import { useParams } from 'react-router-dom';
 import { getResultById } from '../services/storageService';
 import { getAllQuestionsForResults } from '../services/questionService';
 import { generateCategoryAnalysis } from '../services/geminiService';
-import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, RadarChart, PolarGrid, PolarAngleAxis, PolarRadiusAxis, Radar } from 'recharts';
+import { ResponsiveContainer, RadarChart, PolarGrid, PolarAngleAxis, PolarRadiusAxis, Radar, Tooltip } from 'recharts';
 import { jsPDF } from 'jspdf';
 import html2canvas from 'html2canvas';
-import { Download, FileText, FileSpreadsheet, Brain, Loader2 } from 'lucide-react';
+import { FileText, FileSpreadsheet, Brain, Loader2 } from 'lucide-react';
 import { Question } from '../types';
 
 interface CategoryAnalysis {
@@ -24,11 +24,11 @@ const ResultsPage: React.FC = () => {
     const [analysis, setAnalysis] = useState<CategoryAnalysis[]>([]);
     const [isLoadingAnalysis, setIsLoadingAnalysis] = useState(true);
     
-    const allQuestions = getAllQuestionsForResults();
+    const allQuestions = useMemo(() => getAllQuestionsForResults(), []);
 
-    const getQuestionById = (questionId: number): Question | undefined => {
+    const getQuestionById = useCallback((questionId: number): Question | undefined => {
         return allQuestions.find(q => q.id === questionId);
-    };
+    }, [allQuestions]);
     
     const categoryScores = useMemo(() => {
         if (!result) return {};
@@ -47,44 +47,54 @@ const ResultsPage: React.FC = () => {
         }, {} as { [key: string]: { correct: number, total: number } });
 
         return scores;
-    }, [result, allQuestions]);
+    }, [result, getQuestionById]);
 
 
     useEffect(() => {
         const fetchAnalysis = async () => {
-            if (Object.keys(categoryScores).length > 0) {
-                setIsLoadingAnalysis(true);
-                try {
-                    const analysisPromises = Object.entries(categoryScores).map(
-                        async ([category, scores]) => {
-                            const analysisText = await generateCategoryAnalysis(
-                                category,
-                                scores.correct,
-                                scores.total
-                            );
-                            return {
-                                category,
-                                ...scores,
-                                percentage: (scores.correct / scores.total) * 100,
-                                analysisText,
-                            };
-                        }
-                    );
+            if (!result || Object.keys(categoryScores).length === 0) {
+                setIsLoadingAnalysis(false);
+                return;
+            }
 
-                    const results = await Promise.all(analysisPromises);
-                    setAnalysis(results);
-                } catch (error) {
-                    console.error("Failed to fetch AI analysis", error);
-                } finally {
-                    setIsLoadingAnalysis(false);
-                }
-            } else {
-                 setIsLoadingAnalysis(false);
+            setIsLoadingAnalysis(true);
+            try {
+                const analysisPromises = Object.entries(categoryScores).map(
+                    async ([category, scores]) => {
+                        const analysisText = await generateCategoryAnalysis(
+                            category,
+                            scores.correct,
+                            scores.total
+                        );
+                        return {
+                            category,
+                            correct: scores.correct,
+                            total: scores.total,
+                            percentage: scores.total > 0 ? (scores.correct / scores.total) * 100 : 0,
+                            analysisText,
+                        };
+                    }
+                );
+
+                const fetchedAnalyses = await Promise.all(analysisPromises);
+                setAnalysis(fetchedAnalyses);
+            } catch (error) {
+                console.error("Failed to fetch AI analysis", error);
+                const errorAnalyses = Object.entries(categoryScores).map(([category, scores]) => ({
+                    category,
+                    correct: scores.correct,
+                    total: scores.total,
+                    percentage: scores.total > 0 ? (scores.correct / scores.total) * 100 : 0,
+                    analysisText: 'AI 분석 데이터를 불러오는 데 실패했습니다.',
+                }));
+                setAnalysis(errorAnalyses);
+            } finally {
+                setIsLoadingAnalysis(false);
             }
         };
 
         fetchAnalysis();
-    }, [categoryScores]);
+    }, [result, categoryScores]);
 
 
     if (!result) {
@@ -224,29 +234,35 @@ const ResultsPage: React.FC = () => {
                             <p className="ml-4 text-lg text-gray-600">AI가 결과를 분석하고 있습니다...</p>
                         </div>
                     ) : (
-                        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 items-center">
-                            <ResponsiveContainer width="100%" height={400}>
-                                <RadarChart cx="50%" cy="50%" outerRadius="80%" data={radarChartData}>
-                                    <PolarGrid />
-                                    <PolarAngleAxis dataKey="subject" />
-                                    <PolarRadiusAxis angle={30} domain={[0, 100]} />
-                                    <Radar name={result.userInfo.name} dataKey="A" stroke="#4f46e5" fill="#4f46e5" fillOpacity={0.6} />
-                                    <Tooltip />
-                                </RadarChart>
-                            </ResponsiveContainer>
-                            <div className="space-y-4">
-                                {analysis.map((item, index) => (
-                                    <div key={index} className="bg-gray-50 p-4 rounded-lg border">
-                                        <div className="flex justify-between items-center mb-1">
-                                            <h3 className="font-semibold text-gray-800">{item.category}</h3>
-                                            <p className="text-sm font-medium text-gray-600">{item.correct} / {item.total} 개</p>
+                        <div className="space-y-8">
+                             <div className="bg-gray-50 p-4 rounded-lg shadow-inner">
+                                <h3 className="text-lg font-medium text-center text-gray-600 mb-2">인지 능력 균형도</h3>
+                                <ResponsiveContainer width="100%" height={400}>
+                                    <RadarChart cx="50%" cy="50%" outerRadius="80%" data={radarChartData}>
+                                        <PolarGrid />
+                                        <PolarAngleAxis dataKey="subject" />
+                                        <PolarRadiusAxis angle={30} domain={[0, 100]} />
+                                        <Radar name={result.userInfo.name} dataKey="A" stroke="#4f46e5" fill="#4f46e5" fillOpacity={0.6} />
+                                        <Tooltip formatter={(value: number) => `${value.toFixed(1)}%`} />
+                                    </RadarChart>
+                                </ResponsiveContainer>
+                            </div>
+                            <div>
+                                <h3 className="text-lg font-medium text-gray-600 mb-4">분야별 상세 평가</h3>
+                                <div className="space-y-4">
+                                    {analysis.map((item, index) => (
+                                        <div key={index} className="bg-gray-50 p-4 rounded-lg border">
+                                            <div className="flex justify-between items-center mb-1">
+                                                <h3 className="font-semibold text-gray-800">{item.category}</h3>
+                                                <p className="text-sm font-medium text-gray-600">{item.correct} / {item.total} 개</p>
+                                            </div>
+                                            <div className="w-full bg-gray-200 rounded-full h-2.5">
+                                                <div className="bg-indigo-600 h-2.5 rounded-full" style={{ width: `${item.percentage}%` }}></div>
+                                            </div>
+                                            <p className="text-sm text-gray-600 mt-2">{item.analysisText}</p>
                                         </div>
-                                        <div className="w-full bg-gray-200 rounded-full h-2.5">
-                                            <div className="bg-indigo-600 h-2.5 rounded-full" style={{ width: `${item.percentage}%` }}></div>
-                                        </div>
-                                        <p className="text-sm text-gray-600 mt-2">{item.analysisText}</p>
-                                    </div>
-                                ))}
+                                    ))}
+                                </div>
                             </div>
                         </div>
                     )}

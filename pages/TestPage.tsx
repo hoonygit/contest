@@ -124,12 +124,17 @@ const TestPage: React.FC = () => {
                                         }
                                     }
                                 } catch (err) {
-                                    if (err === 'no-speech' || err === 'Listening timeout.') {
+                                    if (err === 'no-speech' || err === 'Listening timeout.' || err === 'low-confidence') {
                                         retries++;
                                         if (retries < MAX_RETRIES) {
-                                            const message = err === 'no-speech'
-                                                ? "아무런 답변이 들리지 않았습니다. 다시 한 번 말씀해주시겠어요?"
-                                                : "답변 시간이 초과되었습니다. 다시 한 번 말씀해주시겠어요?";
+                                            let message;
+                                            if (err === 'no-speech') {
+                                                message = "아무런 답변이 들리지 않았습니다. 다시 한 번 말씀해주시겠어요?";
+                                            } else if (err === 'Listening timeout.') {
+                                                message = "답변 시간이 초과되었습니다. 다시 한 번 말씀해주시겠어요?";
+                                            } else { // low-confidence
+                                                message = "죄송합니다, 답변이 명확하게 들리지 않았습니다. 다시 한 번 말씀해주시겠어요?";
+                                            }
                                             await speak(message);
                                             await speak(question);
                                             await delay(500);
@@ -230,12 +235,17 @@ const TestPage: React.FC = () => {
                                 userAnswer = receivedAnswer;
                                 break;
                             } catch (err) {
-                                if (err === 'no-speech' || err === 'Listening timeout.') {
+                                if (err === 'no-speech' || err === 'Listening timeout.' || err === 'low-confidence') {
                                     retries++;
                                     if (retries < MAX_RETRIES) {
-                                        const message = err === 'no-speech'
-                                            ? "아무런 답변이 들리지 않았습니다. 다시 한 번 말씀해주시겠어요?"
-                                            : "답변 시간이 초과되었습니다. 다시 한 번 말씀해주시겠어요?";
+                                        let message;
+                                        if (err === 'no-speech') {
+                                            message = "아무런 답변이 들리지 않았습니다. 다시 한 번 말씀해주시겠어요?";
+                                        } else if (err === 'Listening timeout.') {
+                                            message = "답변 시간이 초과되었습니다. 다시 한 번 말씀해주시겠어요?";
+                                        } else { // low-confidence
+                                            message = "죄송합니다, 답변이 명확하게 들리지 않았습니다. 다시 한 번 말씀해주시겠어요?";
+                                        }
                                         await speak(message);
                                         const qToRetry = questions[state.qIndex];
                                         await speak(qToRetry.text);
