@@ -351,7 +351,7 @@ const TestPage: React.FC = () => {
                             </div>
                         </div>
                         {currentQuestion?.type === QuestionType.BOSTON_NAMING && currentQuestion.image ? (
-                             <div className="mb-6 p-4 border-4 border-gray-200 rounded-lg bg-white shadow-lg">
+                             <div className="mb-6 p-4 border-4 border-gray-200 rounded-lg bg-white shadow-lg min-h-[352px] flex items-center justify-center">
                                 <img src={currentQuestion.image} alt="Boston Naming Test" className="w-full h-auto object-contain rounded-md max-h-80" />
                             </div>
                         ) : (

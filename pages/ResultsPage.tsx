@@ -19,7 +19,7 @@ interface CategoryAnalysis {
 
 const ResultsPage: React.FC = () => {
     const { id } = useParams<{ id: string }>();
-    const result = id ? getResultById(id) : undefined;
+    const result = useMemo(() => (id ? getResultById(id) : undefined), [id]);
     const reportRef = useRef<HTMLDivElement>(null);
     const [analysis, setAnalysis] = useState<CategoryAnalysis[]>([]);
     const [isLoadingAnalysis, setIsLoadingAnalysis] = useState(true);
