@@ -176,14 +176,18 @@ const useSpeech = () => {
                 const lastResult = event.results[event.results.length - 1];
                 const bestAlternative = lastResult[0];
                 const transcript = bestAlternative.transcript;
-                const confidence = bestAlternative.confidence;
 
-                // Add a confidence check. 0.4 seems a reasonable threshold.
+                // The confidence check was removed to make speech recognition more flexible
+                // and prevent the user from getting stuck. Any recognized speech will now be
+                // passed to the Gemini API for evaluation.
+                /*
+                const confidence = bestAlternative.confidence;
                 if (confidence < 0.4) {
                     reject('low-confidence');
                     cleanup();
                     return;
                 }
+                */
                 
                 resolve(transcript);
                 cleanup();
