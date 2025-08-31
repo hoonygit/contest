@@ -176,14 +176,15 @@ const TestPage: React.FC = () => {
                                 // '대', '살', '세요' 같은 접미사와 공백을 제거하여 정규화
                                 const cleanV = v.replace(/[\s대살세요]/g, '');
                                 
+                                // Process from highest age group to lowest to avoid ambiguity (e.g., "이십" contains "십")
                                 const ageMap: { keywords: string[], group: UserInfo['ageGroup'] }[] = [
-                                    { keywords: ['10', '십', '열'], group: '10대' },
-                                    { keywords: ['20', '이십', '스무', '스물'], group: '20대' },
-                                    { keywords: ['30', '삼십', '서른'], group: '30대' },
-                                    { keywords: ['40', '사십', '마흔'], group: '40대' },
-                                    { keywords: ['50', '오십', '쉰'], group: '50대' },
-                                    { keywords: ['60', '육십', '예순'], group: '60대' },
                                     { keywords: ['70', '칠십', '일흔', '80', '팔십', '여든', '90', '구십', '아흔'], group: '70대 이상' },
+                                    { keywords: ['60', '육십', '예순'], group: '60대' },
+                                    { keywords: ['50', '오십', '쉰'], group: '50대' },
+                                    { keywords: ['40', '사십', '마흔'], group: '40대' },
+                                    { keywords: ['30', '삼십', '서른'], group: '30대' },
+                                    { keywords: ['20', '이십', '스무', '스물'], group: '20대' },
+                                    { keywords: ['10', '십', '열'], group: '10대' },
                                 ];
 
                                 for (const entry of ageMap) {
